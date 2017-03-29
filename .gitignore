@@ -1,5 +1,7 @@
 examples/
 output_images/
+.ipynb_checkpoints/
+__pycache__/
 
 writeup_template.md
 challenge_video.mp4
