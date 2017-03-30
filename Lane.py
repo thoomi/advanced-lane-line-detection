@@ -100,3 +100,18 @@ class Lane():
         cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
 
         return color_warp
+
+        def caluculate_lane_curvature(self, leftx, rightx, image_size_y):
+            ym_per_pix = 30 / 720  # meters per pixel in y dimension
+            xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+
+            ploty = np.linspace(0, image_size_y - 1, image_size_y)
+            y_eval = np.max(ploty)
+
+            # Fit new polynomials to x,y in world space
+            left_fit_cr = np.polyfit(ploty * ym_per_pix, leftx * xm_per_pix, 2)
+            right_fit_cr = np.polyfit(ploty * ym_per_pix, rightx * xm_per_pix, 2)
+
+            # Calculate the new radii of curvature
+            self.left_line.radius_of_curvature = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2 * left_fit_cr[0])
+            self.right_line.radius_of_curvature = ((1 + (2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2 * right_fit_cr[0])
