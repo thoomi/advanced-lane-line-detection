@@ -5,8 +5,18 @@ from Binarizer import Binarizer
 from CameraCalibrator import CameraCalibrator
 from Lane import Lane
 from moviepy.editor import VideoFileClip
+from optparse import OptionParser
 from Warper import Warper
 
+
+# =============================================================================
+# Get command line arguments
+# =============================================================================
+parser = OptionParser()
+(options, args) = parser.parse_args()
+
+input_video_name = args[0]
+output_video_name = 'result_' + input_video_name
 
 # =============================================================================
 # Create processing instances
@@ -38,7 +48,6 @@ def process_image(image):
 # =============================================================================
 # Process video file
 # =============================================================================
-project_output = 'project_video_result.mp4'
-clip1 = VideoFileClip("project_video.mp4")
+clip1 = VideoFileClip(input_video_name)
 project_clip = clip1.fl_image(process_image)
-project_clip.write_videofile(project_output, audio=False)
+project_clip.write_videofile(output_video_name, audio=False)
