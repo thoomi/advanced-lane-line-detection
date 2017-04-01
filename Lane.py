@@ -12,6 +12,8 @@ class Lane():
         """Constuct the object."""
         self.left_line = Line()
         self.right_line = Line()
+        self.xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+        self.ym_per_pix = 30 / 720  # meters per pixel in y dimension
 
     def track_lane_lines(self, image):
         """Detect and tracks a lane line over multiple frames"""
@@ -28,6 +30,57 @@ class Lane():
 
     def detect_lines(self, image):
         """Detect lane lines by applying a sliding window."""
+
+        self.do_sliding_window_search(image)
+
+        self.caluculate_lane_curvature(leftx, rightx, lefty, righty)
+
+        # Fit a second order polynomial to each
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
+
+        # Generate x and y values for plotting
+        ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
+        left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
+
+        # Calculate vehicle distance from lane center
+        lane_center = right_fitx[719] - left_fitx[719]
+        vehicle_center = image.shape[1] / 2
+
+        self.left_line.line_base_pos = abs(vehicle_center - lane_center) * self.xm_per_pix
+
+        # Create an image to draw the lines on
+        warp_zero = np.zeros_like(image).astype(np.uint8)
+        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+
+        # Recast the x and y points into usable format for cv2.fillPoly()
+        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+        pts = np.hstack((pts_left, pts_right))
+
+        # Draw the lane onto the warped blank image
+        cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
+
+        return color_warp
+
+    def do_margin_based_search(self, image):
+        nonzero = binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+        margin = 100
+        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
+        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))
+
+        # Again, extract left and right line pixel positions
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+
+        return leftx, lefty, rightx, righty
+
+    def do_sliding_window_search(self, image):
         nwindows = 9
         window_height = np.int(image.shape[0] / nwindows)
         half_window_width = 100
@@ -78,40 +131,15 @@ class Lane():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
-        # Fit a second order polynomial to each
-        left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
+        return leftx, lefty, rightx, righty
 
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
-        left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
+    def caluculate_lane_curvature(self, leftx, rightx, lefty, righty):
+        y_eval = 720
 
-        # Create an image to draw the lines on
-        warp_zero = np.zeros_like(image).astype(np.uint8)
-        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+        # Fit new polynomials to x,y in world space
+        left_fit_cr = np.polyfit(lefty * self.ym_per_pix, leftx * self.xm_per_pix, 2)
+        right_fit_cr = np.polyfit(righty * self.ym_per_pix, rightx * self.xm_per_pix, 2)
 
-        # Recast the x and y points into usable format for cv2.fillPoly()
-        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
-        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
-        pts = np.hstack((pts_left, pts_right))
-
-        # Draw the lane onto the warped blank image
-        cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
-
-        return color_warp
-
-        def caluculate_lane_curvature(self, leftx, rightx, image_size_y):
-            ym_per_pix = 30 / 720  # meters per pixel in y dimension
-            xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
-
-            ploty = np.linspace(0, image_size_y - 1, image_size_y)
-            y_eval = np.max(ploty)
-
-            # Fit new polynomials to x,y in world space
-            left_fit_cr = np.polyfit(ploty * ym_per_pix, leftx * xm_per_pix, 2)
-            right_fit_cr = np.polyfit(ploty * ym_per_pix, rightx * xm_per_pix, 2)
-
-            # Calculate the new radii of curvature
-            self.left_line.radius_of_curvature = ((1 + (2 * left_fit_cr[0] * y_eval * ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2 * left_fit_cr[0])
-            self.right_line.radius_of_curvature = ((1 + (2 * right_fit_cr[0] * y_eval * ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2 * right_fit_cr[0])
+        # Calculate the new radii of curvature
+        self.left_line.radius_of_curvature = ((1 + (2 * left_fit_cr[0] * y_eval * self.ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2 * left_fit_cr[0])
+        self.right_line.radius_of_curvature = ((1 + (2 * right_fit_cr[0] * y_eval * self.ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2 * right_fit_cr[0])
