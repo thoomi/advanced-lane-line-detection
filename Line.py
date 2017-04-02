@@ -5,25 +5,37 @@ import numpy as np
 class Line():
     """Represents a road lane line."""
 
-    def __init__(self):
-        """Constuct the object."""
+    def __init__(self, frame_memory=1, x=None, y=None):
+        """Construct the object."""
+        # Number of frames to keep
+        self.frame_memory = frame_memory
         # was the line detected in the last iteration?
         self.detected = False
-        # x values of the last n fits of the line
-        self.recent_xfitted = []
-        # average x values of the fitted line over the last n iterations
-        self.bestx = None
-        # polynomial coefficients averaged over the last n iterations
+        # polynomial averaged over the last n iterations
         self.best_fit = None
-        # polynomial coefficients for the most recent fit
-        self.current_fit = [np.array([False])]
-        # radius of curvature of the line in some units
-        self.radius_of_curvature = None
-        # distance in meters of vehicle center from the line
-        self.line_base_pos = None
-        # difference in fit coefficients between last and new fits
-        self.diffs = np.array([0, 0, 0], dtype='float')
+        # polynomial for the most recent fit
+        self.current_fit = None
         # x values for detected line pixels
         self.allx = None
         # y values for detected line pixels
         self.ally = None
+        # Update lane information with given values
+        if x is not None and y is not None:
+            self.update(x, y)
+
+    def update(self, x, y):
+        """Update line information"""
+        assert len(x) == len(y)
+
+        self.allx = x
+        self.ally = y
+
+        self.current_fit = np.poly1d(np.polyfit(self.allx, self.ally, 2))
+
+        if self.best_fit is None:
+            self.best_fit = self.current_fit
+        else:
+            # Average polynomial coefficients
+            current_coeffs = self.current_fit.c
+            best_coeffs = self.best_fit.c
+            self.best_fit = np.poly1d((best_coeffs * (self.frame_memory - 1) + current_coeffs) / self.frame_memory)

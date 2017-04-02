@@ -13,10 +13,19 @@ class Warper():
         src_bottom_right = [1120, 720]
         src_bottom_left = [190, 720]
 
-        dest_top_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 0]
-        dest_top_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 0]
-        dest_bottom_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 720]
-        dest_bottom_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 720]
+        # dest_top_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 0]
+        # dest_top_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 0]
+        # dest_bottom_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 720]
+        # dest_bottom_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 720]
+
+        dest_top_left = [src_bottom_left[0] + 300, 0]
+        dest_top_right = [src_top_right[0] + 300, 0]
+        dest_bottom_right = [src_top_right[0] + 300, 720]
+        dest_bottom_left = [src_bottom_left[0] + 300, 720]
+        # dest_top_left = [200, 0]
+        # dest_top_right = [1200, 0]
+        # dest_bottom_right = [1200, 720]
+        # dest_bottom_left = [200, 720]
 
         src_warp = np.float32([src_top_left, src_top_right, src_bottom_right, src_bottom_left])
         dest_warp = np.float32([dest_top_left, dest_top_right, dest_bottom_right, dest_bottom_left])

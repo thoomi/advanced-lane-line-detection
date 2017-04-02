@@ -8,69 +8,80 @@ from Line import Line
 class Lane():
     """Represents a road lane"""
 
-    def __init__(self):
+    def __init__(self, image_size):
         """Constuct the object."""
-        self.left_line = Line()
-        self.right_line = Line()
+        self.left_line = Line(frame_memory=10)
+        self.right_line = Line(frame_memory=10)
+
         self.xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
         self.ym_per_pix = 30 / 720  # meters per pixel in y dimension
 
-    def track_lane_lines(self, image):
-        """Detect and tracks a lane line over multiple frames"""
-        return self.detect_lines(image)
+        self.polynom_search_margin = 100
 
-    def find_lane_centers(self, image):
+        self.image_size = image_size  # Size of input images, usually (720, 1280)
+
+        self.center_polynom = None
+        self.center_curvature = 0.0
+        self.center_offset = 0.0
+
+    def detect_lane(self, image):
+        """Detect lane lines by applying a sliding window."""
+        if self.left_line.detected is True and self.right_line.detected is True:
+            leftx, lefty, rightx, righty = self.do_margin_based_search(image)
+            self.check_detected_lines(leftx, lefty, rightx, righty)
+
+        if self.left_line.detected is False and self.right_line.detected is False:
+            leftx, lefty, rightx, righty = self.do_sliding_window_search(image)
+
+        self.left_line.update(x=lefty, y=leftx)
+        self.right_line.update(x=righty, y=rightx)
+
+        self.center_polynom = (self.left_line.best_fit + self.right_line.best_fit) / 2
+
+        self.caluculate_lane_curvature()
+        self.Calculate_center_offset()
+
+    def check_detected_lines(self, leftx, lefty, rightx, righty):
+        """Check if the detected lane line pixels are plausible"""
+        detected_left_line = Line(x=lefty, y=leftx)
+        detected_right_line = Line(x=righty, y=rightx)
+
+        # Check if they are parallel
+        first_coefficients_diff = np.abs(detected_left_line.current_fit[2] - detected_right_line.current_fit[2])
+        second_coefficients_diff = np.abs(detected_left_line.current_fit[1] - detected_right_line.current_fit[1])
+
+        lines_are_parallel = first_coefficients_diff < 0.0003 and second_coefficients_diff < 0.55
+
+        # Check if the lines have plausible distance
+        distance = np.abs(detected_left_line.current_fit(719) - detected_right_line.current_fit(719))
+        lines_are_plausible = 350 < distance < 460
+
+        detection_ok = lines_are_parallel & lines_are_plausible
+
+        self.left_line.detected = detection_ok
+        self.right_line.detected = detection_ok
+
+    def find_line_centers(self, image):
         """Find a left and right lane center position by histogram"""
-        histogram = np.sum(image[int(image.shape[0] / 2):, :], axis=0)
+        histogram = np.sum(image[int(self.image_size[0] / 2):, :], axis=0)
         midpoint = np.int(histogram.shape[0] / 2)
         leftx_base = np.argmax(histogram[:midpoint])
         rightx_base = np.argmax(histogram[midpoint:]) + midpoint
 
         return leftx_base, rightx_base
 
-    def detect_lines(self, image):
-        """Detect lane lines by applying a sliding window."""
-
-        self.do_sliding_window_search(image)
-
-        self.caluculate_lane_curvature(leftx, rightx, lefty, righty)
-
-        # Fit a second order polynomial to each
-        left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
-
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
-        left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
-
-        # Calculate vehicle distance from lane center
-        lane_center = right_fitx[719] - left_fitx[719]
-        vehicle_center = image.shape[1] / 2
-
-        self.left_line.line_base_pos = abs(vehicle_center - lane_center) * self.xm_per_pix
-
-        # Create an image to draw the lines on
-        warp_zero = np.zeros_like(image).astype(np.uint8)
-        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
-
-        # Recast the x and y points into usable format for cv2.fillPoly()
-        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
-        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
-        pts = np.hstack((pts_left, pts_right))
-
-        # Draw the lane onto the warped blank image
-        cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
-
-        return color_warp
-
     def do_margin_based_search(self, image):
-        nonzero = binary_warped.nonzero()
+        """Do line search along the latest polynomial fit"""
+        nonzero = image.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
-        margin = 100
-        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + left_fit[2] + margin)))
-        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] - margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy + right_fit[2] + margin)))
+        margin = self.polynom_search_margin
+
+        left_lane_inds = ((nonzerox > (self.left_line.best_fit[2] * (nonzeroy**2) + self.left_line.best_fit[1] * nonzeroy + self.left_line.best_fit[0] - margin)) &
+                          (nonzerox < (self.left_line.best_fit[2] * (nonzeroy**2) + self.left_line.best_fit[1] * nonzeroy + self.left_line.best_fit[0] + margin)))
+
+        right_lane_inds = ((nonzerox > (self.right_line.best_fit[2] * (nonzeroy**2) + self.right_line.best_fit[1] * nonzeroy + self.right_line.best_fit[0] - margin)) &
+                           (nonzerox < (self.right_line.best_fit[2] * (nonzeroy**2) + self.right_line.best_fit[1] * nonzeroy + self.right_line.best_fit[0] + margin)))
 
         # Again, extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
@@ -81,8 +92,9 @@ class Lane():
         return leftx, lefty, rightx, righty
 
     def do_sliding_window_search(self, image):
+        """Do sliding window line search based on histogram peaks"""
         nwindows = 9
-        window_height = np.int(image.shape[0] / nwindows)
+        window_height = np.int(self.image_size[0] / nwindows)
         half_window_width = 100
         minpx_to_recenter = 50
 
@@ -92,7 +104,7 @@ class Lane():
         nonzerox = np.array(nonzero[1])
 
         # Set window search starting positions
-        leftx_current, rightx_current = self.find_lane_centers(image)
+        leftx_current, rightx_current = self.find_line_centers(image)
 
         # Create empty lists to receive left and right lane pixel indices
         left_lane_inds = []
@@ -100,8 +112,8 @@ class Lane():
 
         for window in range(nwindows):
             # Identify window boundaries in x and y (and right and left)
-            win_y_low = image.shape[0] - (window + 1) * window_height
-            win_y_high = image.shape[0] - window * window_height
+            win_y_low = self.image_size[0] - (window + 1) * window_height
+            win_y_high = self.image_size[0] - window * window_height
             win_xleft_low = leftx_current - half_window_width
             win_xleft_high = leftx_current + half_window_width
             win_xright_low = rightx_current - half_window_width
@@ -133,13 +145,53 @@ class Lane():
 
         return leftx, lefty, rightx, righty
 
-    def caluculate_lane_curvature(self, leftx, rightx, lefty, righty):
-        y_eval = 720
+    def caluculate_lane_curvature(self):
+        """Calculate lane curvature of left and right lane"""
+        assert self.center_polynom is not None
 
-        # Fit new polynomials to x,y in world space
-        left_fit_cr = np.polyfit(lefty * self.ym_per_pix, leftx * self.xm_per_pix, 2)
-        right_fit_cr = np.polyfit(righty * self.ym_per_pix, rightx * self.xm_per_pix, 2)
+        y = np.array(np.linspace(0, 719, num=10))
+        x = np.array([self.center_polynom(x) for x in y])
+        y_eval = np.max(y)
 
         # Calculate the new radii of curvature
-        self.left_line.radius_of_curvature = ((1 + (2 * left_fit_cr[0] * y_eval * self.ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2 * left_fit_cr[0])
-        self.right_line.radius_of_curvature = ((1 + (2 * right_fit_cr[0] * y_eval * self.ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2 * right_fit_cr[0])
+        world_space_fit = np.polyfit(y * self.ym_per_pix, x * self.xm_per_pix, 2)
+        self.center_curvature = ((1 + (2 * world_space_fit[0] * y_eval / 2. + world_space_fit[1]) ** 2) ** 1.5) / np.absolute(2 * world_space_fit[0])
+
+    def Calculate_center_offset(self):
+        """Calculate vehicle center offset"""
+        assert self.center_polynom is not None
+
+        lane_center = self.center_polynom(self.image_size[0] - 1)
+        vehicle_center = self.image_size[1] / 2
+
+        self.center_offset = (vehicle_center - lane_center) * self.xm_per_pix
+
+    def get_debug_image(self, image):
+        """Update debug image"""
+        out_img = np.dstack((image, image, image)) * 255
+        out_img[self.left_line.allx, self.left_line.ally] = [255, 0, 0]
+        out_img[self.right_line.allx, self.right_line.ally] = [0, 0, 255]
+
+        left_fit = self.left_line.best_fit.c
+        right_fit = self.right_line.best_fit.c
+
+        # Generate x and y values for plotting
+        ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
+        left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
+
+        left_line_window1 = np.array([np.transpose(np.vstack([left_fitx - self.polynom_search_margin, ploty]))])
+        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx + self.polynom_search_margin, ploty])))])
+        left_line_pts = np.hstack((left_line_window1, left_line_window2))
+
+        right_line_window1 = np.array([np.transpose(np.vstack([right_fitx - self.polynom_search_margin, ploty]))])
+        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx + self.polynom_search_margin, ploty])))])
+        right_line_pts = np.hstack((right_line_window1, right_line_window2))
+
+        window_img = np.zeros_like(out_img)
+        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0, 255, 0))
+        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0, 255, 0))
+
+        result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+
+        return result
