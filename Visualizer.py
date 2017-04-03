@@ -43,35 +43,36 @@ class Visualizer():
 
     def draw_lane_on_road(self, original_image, lane):
         """Draw lane"""
-        left_fit = lane.left_line.best_fit.c
-        right_fit = lane.right_line.best_fit.c
+        if lane.left_line.best_fit is not None and lane.right_line.best_fit is not None:
+            left_fit = lane.left_line.best_fit.c
+            right_fit = lane.right_line.best_fit.c
 
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, original_image.shape[0] - 1, original_image.shape[0])
-        left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
+            # Generate x and y values for plotting
+            ploty = np.linspace(0, original_image.shape[0] - 1, original_image.shape[0])
+            left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
+            right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
 
-        # Recast the x and y points into usable format for cv2.fillPoly()
-        margin = 30
-        left_line_window1 = np.array([np.transpose(np.vstack([left_fitx - margin, ploty]))])
-        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx + margin, ploty])))])
-        left_line_pts = np.hstack((left_line_window1, left_line_window2))
+            # Recast the x and y points into usable format for cv2.fillPoly()
+            margin = 30
+            left_line_window1 = np.array([np.transpose(np.vstack([left_fitx - margin, ploty]))])
+            left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx + margin, ploty])))])
+            left_line_pts = np.hstack((left_line_window1, left_line_window2))
 
-        right_line_window1 = np.array([np.transpose(np.vstack([right_fitx - margin, ploty]))])
-        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx + margin, ploty])))])
-        right_line_pts = np.hstack((right_line_window1, right_line_window2))
+            right_line_window1 = np.array([np.transpose(np.vstack([right_fitx - margin, ploty]))])
+            right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx + margin, ploty])))])
+            right_line_pts = np.hstack((right_line_window1, right_line_window2))
 
-        # pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
-        # pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
-        pts = np.hstack((left_line_window2, right_line_window1))
+            # pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+            # pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+            pts = np.hstack((left_line_window2, right_line_window1))
 
-        mask = np.zeros_like(original_image)
-        cv2.fillPoly(mask, np.int_([pts]), (0, 255, 0))
-        cv2.fillPoly(mask, np.int_([left_line_pts]), (255, 0, 0))
-        cv2.fillPoly(mask, np.int_([right_line_pts]), (255, 0, 0))
-        mask = self.warper.unWarp(mask)
+            mask = np.zeros_like(original_image)
+            cv2.fillPoly(mask, np.int_([pts]), (0, 255, 0))
+            cv2.fillPoly(mask, np.int_([left_line_pts]), (255, 0, 0))
+            cv2.fillPoly(mask, np.int_([right_line_pts]), (0, 0, 255))
+            mask = self.warper.unWarp(mask)
 
-        # Draw the lane onto the warped blank image
-        original_image = cv2.addWeighted(original_image, 1, mask, 0.3, 0)
+            # Draw the lane onto the warped blank image
+            original_image = cv2.addWeighted(original_image, 1, mask, 0.3, 0)
 
         return original_image

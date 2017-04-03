@@ -1,6 +1,6 @@
 """Process images based on the defined pipeline"""
-import cv2
-import matplotlib.pyplot as plt
+# import cv2
+# import matplotlib.pyplot as plt
 
 from Binarizer import Binarizer
 from CameraCalibrator import CameraCalibrator
@@ -52,14 +52,14 @@ def process_image(image):
     return result
 
 
-image = cv2.imread('./test_images/straight_lines2.jpg')
-output = process_image(image)
-plt.imshow(output[..., ::-1])
-plt.show()
+# image = cv2.imread('./test_images/straight_lines2.jpg')
+# output = process_image(image)
+# plt.imshow(output[..., ::-1])
+# plt.show()
 
 # =============================================================================
 # Process video file
 # =============================================================================
-# clip1 = VideoFileClip(input_video_name)
-# project_clip = clip1.fl_image(process_image)
-# project_clip.write_videofile(output_video_name, audio=False)
+clip1 = VideoFileClip(input_video_name)
+project_clip = clip1.fl_image(process_image)
+project_clip.write_videofile(output_video_name, audio=False)

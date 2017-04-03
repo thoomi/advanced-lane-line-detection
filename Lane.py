@@ -10,8 +10,8 @@ class Lane():
 
     def __init__(self, image_size):
         """Constuct the object."""
-        self.left_line = Line(frame_memory=10)
-        self.right_line = Line(frame_memory=10)
+        self.left_line = Line(frame_memory=7)
+        self.right_line = Line(frame_memory=7)
 
         self.xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
         self.ym_per_pix = 30 / 720  # meters per pixel in y dimension
@@ -24,39 +24,80 @@ class Lane():
         self.center_curvature = 0.0
         self.center_offset = 0.0
 
+        self.undetected_frame_count = 0
+        self.previos_detection = False
+
+    def reset(self):
+        """Reset lane to its initial state"""
+        self.left_line.reset()
+        self.right_line.reset()
+        self.center_polynom = None
+        self.center_curvature = 0.0
+        self.center_offset = 0.0
+        self.undetected_frame_count = 0
+
     def detect_lane(self, image):
         """Detect lane lines by applying a sliding window."""
-        if self.left_line.detected is True and self.right_line.detected is True:
+        leftx = lefty = rightx = righty = []
+
+        # If lines have been detected previously try to find current ones along polynomial
+        if self.left_line.detected and self.right_line.detected:
             leftx, lefty, rightx, righty = self.do_margin_based_search(image)
             self.check_detected_lines(leftx, lefty, rightx, righty)
 
-        if self.left_line.detected is False and self.right_line.detected is False:
+        # If lines havent been detected yet try to find them by sliding window
+        if not self.left_line.detected and not self.right_line.detected:
             leftx, lefty, rightx, righty = self.do_sliding_window_search(image)
+            self.check_detected_lines(leftx, lefty, rightx, righty)
 
-        self.left_line.update(x=lefty, y=leftx)
-        self.right_line.update(x=righty, y=rightx)
+        # If lines are not detected for a row of frames reset previous detections
+        if not self.left_line.detected and not self.right_line.detected:
+            self.undetected_frame_count += 1
+            if (self.undetected_frame_count > 14):
+                self.reset()
+        else:
+            self.undetected_frame_count = 0
 
-        self.center_polynom = (self.left_line.best_fit + self.right_line.best_fit) / 2
+        # Update line information
+        if self.left_line.detected:
+            self.left_line.update(x=lefty, y=leftx)
+            self.previos_detection = True
 
-        self.caluculate_lane_curvature()
-        self.Calculate_center_offset()
+        if self.right_line.detected:
+            self.right_line.update(x=righty, y=rightx)
+
+        # Update lane information based on center polynom
+        if self.left_line.best_fit is not None and self.right_line.best_fit is not None:
+            self.center_polynom = (self.left_line.best_fit + self.right_line.best_fit) / 2
+
+            self.caluculate_lane_curvature()
+            self.Calculate_center_offset()
 
     def check_detected_lines(self, leftx, lefty, rightx, righty):
         """Check if the detected lane line pixels are plausible"""
-        detected_left_line = Line(x=lefty, y=leftx)
-        detected_right_line = Line(x=righty, y=rightx)
+        is_valid_input = len(leftx) > 3 and len(rightx) > 3
+        lines_are_plausible = False
+        lines_are_parallel = False
 
-        # Check if they are parallel
-        first_coefficients_diff = np.abs(detected_left_line.current_fit[2] - detected_right_line.current_fit[2])
-        second_coefficients_diff = np.abs(detected_left_line.current_fit[1] - detected_right_line.current_fit[1])
+        if is_valid_input:
+            detected_left_line = Line(x=lefty, y=leftx)
+            detected_right_line = Line(x=righty, y=rightx)
 
-        lines_are_parallel = first_coefficients_diff < 0.0003 and second_coefficients_diff < 0.55
+            # Check if they are parallel
+            first_coefficients_diff = np.abs(detected_left_line.current_fit[2] - detected_right_line.current_fit[2])
+            second_coefficients_diff = np.abs(detected_left_line.current_fit[1] - detected_right_line.current_fit[1])
 
-        # Check if the lines have plausible distance
-        distance = np.abs(detected_left_line.current_fit(719) - detected_right_line.current_fit(719))
-        lines_are_plausible = 350 < distance < 460
+            # print('First: ' + str(first_coefficients_diff))
+            # print('Second: ' + str(second_coefficients_diff))
 
-        detection_ok = lines_are_parallel & lines_are_plausible
+            lines_are_parallel = first_coefficients_diff < 0.0005 and second_coefficients_diff < 0.55
+
+            # Check if the lines have plausible distance
+            distance = np.abs(detected_left_line.current_fit(719) - detected_right_line.current_fit(719))
+            # print('Distance: ' + str(distance))
+            lines_are_plausible = 380 < distance < 550
+
+        detection_ok = is_valid_input & lines_are_plausible & lines_are_parallel
 
         self.left_line.detected = detection_ok
         self.right_line.detected = detection_ok
@@ -169,29 +210,31 @@ class Lane():
     def get_debug_image(self, image):
         """Update debug image"""
         out_img = np.dstack((image, image, image)) * 255
-        out_img[self.left_line.allx, self.left_line.ally] = [255, 0, 0]
-        out_img[self.right_line.allx, self.right_line.ally] = [0, 0, 255]
 
-        left_fit = self.left_line.best_fit.c
-        right_fit = self.right_line.best_fit.c
+        if self.left_line.best_fit is not None and self.right_line.best_fit is not None:
+            out_img[self.left_line.allx, self.left_line.ally] = [255, 0, 0]
+            out_img[self.right_line.allx, self.right_line.ally] = [0, 0, 255]
 
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
-        left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
+            left_fit = self.left_line.best_fit.c
+            right_fit = self.right_line.best_fit.c
 
-        left_line_window1 = np.array([np.transpose(np.vstack([left_fitx - self.polynom_search_margin, ploty]))])
-        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx + self.polynom_search_margin, ploty])))])
-        left_line_pts = np.hstack((left_line_window1, left_line_window2))
+            # Generate x and y values for plotting
+            ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
+            left_fitx = left_fit[0] * ploty**2 + left_fit[1] * ploty + left_fit[2]
+            right_fitx = right_fit[0] * ploty**2 + right_fit[1] * ploty + right_fit[2]
 
-        right_line_window1 = np.array([np.transpose(np.vstack([right_fitx - self.polynom_search_margin, ploty]))])
-        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx + self.polynom_search_margin, ploty])))])
-        right_line_pts = np.hstack((right_line_window1, right_line_window2))
+            left_line_window1 = np.array([np.transpose(np.vstack([left_fitx - self.polynom_search_margin, ploty]))])
+            left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx + self.polynom_search_margin, ploty])))])
+            left_line_pts = np.hstack((left_line_window1, left_line_window2))
 
-        window_img = np.zeros_like(out_img)
-        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0, 255, 0))
-        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0, 255, 0))
+            right_line_window1 = np.array([np.transpose(np.vstack([right_fitx - self.polynom_search_margin, ploty]))])
+            right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx + self.polynom_search_margin, ploty])))])
+            right_line_pts = np.hstack((right_line_window1, right_line_window2))
 
-        result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+            window_img = np.zeros_like(out_img)
+            cv2.fillPoly(window_img, np.int_([left_line_pts]), (0, 255, 0))
+            cv2.fillPoly(window_img, np.int_([right_line_pts]), (0, 255, 0))
 
-        return result
+            out_img = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+
+        return out_img

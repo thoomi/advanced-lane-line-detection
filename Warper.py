@@ -8,8 +8,8 @@ class Warper():
 
     def __init__(self):
         """Initialize image warper"""
-        src_top_left = [600, 450]
-        src_top_right = [680, 450]
+        src_top_left = [570, 470]
+        src_top_right = [720, 470]
         src_bottom_right = [1120, 720]
         src_bottom_left = [190, 720]
 

@@ -23,14 +23,14 @@ class Binarizer():
         V_binary = np.zeros_like(V)
         V_binary[(V >= 0) & (V <= 100)] = 1
 
-        self.sobelx = cv2.Sobel(Y, cv2.CV_64F, 1, 0, ksize=13)
-        self.sobely = cv2.Sobel(Y, cv2.CV_64F, 0, 1, ksize=13)
+        self.sobelx = cv2.Sobel(Y, cv2.CV_64F, 1, 0, ksize=5)
+        self.sobely = cv2.Sobel(Y, cv2.CV_64F, 0, 1, ksize=5)
 
         gradx = self.abs_sobel_threshold(orient='x', thresh=(20, 100))
         grady = self.abs_sobel_threshold(orient='y', thresh=(20, 100))
 
         combined = np.zeros_like(Y)
-        combined[(gradx == 1) & (grady == 1) | (Y_binary == 1) | (V_binary == 1)] = 1
+        combined[(Y_binary == 1) | (V_binary == 1)] = 1
 
         return combined
 

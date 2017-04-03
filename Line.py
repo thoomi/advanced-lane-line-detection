@@ -23,6 +23,14 @@ class Line():
         if x is not None and y is not None:
             self.update(x, y)
 
+    def reset(self):
+        """Reset line to its initial state"""
+        self.detected = False
+        self.best_fit = None
+        self.current_fit = None
+        self.allx = None
+        self.ally = None
+
     def update(self, x, y):
         """Update line information"""
         assert len(x) == len(y)
