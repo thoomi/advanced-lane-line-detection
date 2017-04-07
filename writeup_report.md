@@ -137,11 +137,11 @@ In order to create a more robust pipeline, I implemented some additional feature
 
 #### 1. Project Video Result
 
-[![Project video thumbnail][videothumb1]](./advanced-lane-line-detection/videos/result_project_video.mp4?raw=true)
+[![Project video thumbnail][videothumb1]](./videos/result_project_video.mp4?raw=true)
 
 
 #### 2. Challenge Video Result
-[![Project video thumbnail][videothumb2]](./advanced-lane-line-detection/videos/result_challenge_video.mp4?raw=true)
+[![Project video thumbnail][videothumb2]](./videos/result_challenge_video.mp4?raw=true)
 
 
 ---
