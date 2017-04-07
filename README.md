@@ -5,6 +5,11 @@ Overview
 ---
 This is the fourth project I am doing as part of Udacity's Self-Driving-Car Nanodegree.
 
+Preview:
+
+[image1]: ./output_images/final_result.gif "Final pipeline result"
+[![Project video thumbnail][image1]](./advanced-lane-line-detection/videos/result_project_video.mp4?raw=true)
+
 ### Project Goals
 The goals/steps of this project are the following:
 * Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
@@ -17,9 +22,16 @@ The goals/steps of this project are the following:
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
 
-### Implementation
-Follows...
-
-
 ### Results
+[videothumb1]: ./output_images/0.png "Final example 1"
+[videothumb2]: ./output_images/4.png "Final example 2"
+
+#### 1. Project Video Result
+
+[![Project video thumbnail][videothumb1]](./advanced-lane-line-detection/videos/result_project_video.mp4?raw=true)
+
+
+#### 2. Challenge Video Result
+[![Project video thumbnail][videothumb2]](./advanced-lane-line-detection/videos/result_challenge_video.mp4?raw=true)
+
 For a more detailed insight on the project please see the full [Writeup / Report](https://github.com/thoomi/advanced-lane-line-detection/blob/master/writeup_report.md).

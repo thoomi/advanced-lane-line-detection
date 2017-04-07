@@ -8,20 +8,20 @@ class Warper():
 
     def __init__(self):
         """Initialize image warper"""
-        src_top_left = [570, 470]
-        src_top_right = [720, 470]
+        src_top_left = [590, 450]
+        src_top_right = [685, 450]
         src_bottom_right = [1120, 720]
         src_bottom_left = [190, 720]
 
-        # dest_top_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 0]
-        # dest_top_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 0]
-        # dest_bottom_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 720]
-        # dest_bottom_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 720]
+        dest_top_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 0]
+        dest_top_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 0]
+        dest_bottom_right = [src_top_right[0] + (src_bottom_right[0] - src_top_right[0]) / 2, 720]
+        dest_bottom_left = [src_bottom_left[0] + (src_top_left[0] - src_bottom_left[0]) / 2, 720]
 
-        dest_top_left = [src_bottom_left[0] + 300, 0]
-        dest_top_right = [src_top_right[0] + 300, 0]
-        dest_bottom_right = [src_top_right[0] + 300, 720]
-        dest_bottom_left = [src_bottom_left[0] + 300, 720]
+        # dest_top_left = [src_bottom_left[0] + 300, 0]
+        # dest_top_right = [src_top_right[0] + 300, 0]
+        # dest_bottom_right = [src_top_right[0] + 300, 720]
+        # dest_bottom_left = [src_bottom_left[0] + 300, 720]
         # dest_top_left = [200, 0]
         # dest_top_right = [1200, 0]
         # dest_bottom_right = [1200, 720]
